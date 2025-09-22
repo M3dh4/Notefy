@@ -1,53 +1,39 @@
 import React, { useState, useTransition, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { GATEWAY_URL } from "../config";
-import { Card, Alert, CardColumns, Button } from "react-bootstrap";
+import { Card, Alert, Row, Col, Button } from "react-bootstrap";
 import { Loading, PageContainer } from "../components";
-interface Note {
-  noteId: string;
-  createdAt: string;
-  content: string;
-  attachment: boolean;
-}
+import { listNotes, type LocalNote } from "../libs";
 
 const ListNotes = () => {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<LocalNote[]>([]);
 
   useEffect(() => {
-    const fetchNotes = () => {
-      startTransition(async () => {
-        const fetchURL = `${GATEWAY_URL}notes`;
-
-        try {
-          const response = await fetch(fetchURL);
-          const data = await response.json();
-          setNotes(data);
-        } catch (error) {
-          setErrorMsg(`${error.toString()} - ${fetchURL}`);
-        }
-      });
-    };
-    fetchNotes();
+    startTransition(async () => {
+      try {
+        const data = await listNotes();
+        setNotes(data);
+      } catch (error) {
+        setErrorMsg(`${error.toString()}`);
+      }
+    });
   }, []);
 
-  const renderNotes = (notes: Note[]) =>
+  const renderNotes = (notes: LocalNote[]) =>
     notes.map((note) => (
       <Link key={note.noteId} to={`/notes/${note.noteId}`}>
         <Card>
           <Card.Body>
-            <Card.Title>
-              {note.attachment && (
-                <span role="img" aria-label="attachment" className="mr-1">
-                  📎
-                </span>
-              )}
-              {note.content}
-            </Card.Title>
+             <Card.Title>
+              {note.content.length > 100 ? note.content.slice(0, 100) + "…" : note.content}
+             </Card.Title>
             <Card.Subtitle className="text-muted">
               Created: {new Date(parseInt(note.createdAt)).toLocaleString()}
             </Card.Subtitle>
+             {note.attachments && note.attachments.length > 0 && (
+               <div className="mt-2 small text-muted">{note.attachments.length} attachment(s)</div>
+             )}
           </Card.Body>
         </Card>
       </Link>
@@ -62,13 +48,30 @@ const ListNotes = () => {
   );
 
   return (
-    <PageContainer header={<div>Your Notes</div>}>
+    <PageContainer header={<div>Notefy • Your Notes</div>}>
       {errorMsg && <Alert variant="danger">{errorMsg}</Alert>}
       {isPending ? (
         <Loading />
       ) : (
         <div>
-          <CardColumns>{renderNotes(notes)}</CardColumns>
+          <Row xs={1} md={2} lg={3} className="g-3">
+            {notes.length ? (
+              renderNotes(notes).map((card, idx) => (
+                <Col key={idx} className="mb-3">
+                  {card}
+                </Col>
+              ))
+            ) : (
+              <Col>
+                <Card>
+                  <Card.Body>
+                    <Card.Title>No notes yet</Card.Title>
+                    <Card.Text>Create your first note to get started.</Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+            )}
+          </Row>
           {createNewNote()}
         </div>
       )}

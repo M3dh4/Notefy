@@ -1,50 +1,44 @@
 import React, { useState, FormEvent, useTransition } from "react";
 import { Form, Button, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { GATEWAY_URL } from "../config";
-import { putObject } from "../libs";
+import { createNote, type LocalAttachment } from "../libs";
 import { HomeButton, ButtonSpinner, PageContainer } from "../components";
-import { RecordAudioButton } from "./RecordAudioButton";
-import { PlayAudioButton } from "./PlayAudioButton";
-
-const MAX_FILE_SIZE = 2000000;
 
 const CreateNote = () => {
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
   const [noteContent, setNoteContent] = useState("");
-  const [file, setFile] = useState();
-
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    // @ts-ignore Object is possibly 'undefined'
-    if (file && file.size > MAX_FILE_SIZE) {
-      setErrorMsg(`File can't be bigger than ${MAX_FILE_SIZE / 1000000} MB`);
-      return;
-    }
     startTransition(async () => {
-      const createNoteURL = `${GATEWAY_URL}notes`;
-
       try {
-        // @ts-ignore Argument of type 'undefined' is not assignable to parameter of type 'File'
-        const attachment = file ? await putObject(file) : undefined;
-        await fetch(createNoteURL, {
-          method: "POST",
-          body: JSON.stringify({ attachment, content: noteContent }),
-        });
+        await createNote(noteContent, attachments);
         navigate("/");
       } catch (error) {
-        setErrorMsg(`${error.toString()} - ${createNoteURL} - ${noteContent}`);
+        setErrorMsg(`${error.toString()} - createNote - ${noteContent}`);
       }
     });
   };
 
-  const noteContentAdditionalProps = isRecording || isPlaying ? { disabled: true, value: noteContent } : {};
+  const onFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    const newAttachments: LocalAttachment[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      newAttachments.push({ id: `${Date.now()}-${i}`, name: file.name, type: file.type || "application/octet-stream", dataUrl });
+    }
+    setAttachments((prev) => [...prev, ...newAttachments]);
+  };
 
   return (
     <PageContainer header={<HomeButton />}>
@@ -54,39 +48,25 @@ const CreateNote = () => {
           <Form.Label>Note Content</Form.Label>
           <Form.Control
             as="textarea"
-            placeholder={isRecording ? "Speak Now" : "Enter Note content"}
+            placeholder={"Enter note content"}
             onChange={(e) => {
               const content = e.currentTarget.value;
               if (content) {
                 setNoteContent(content);
               }
             }}
-            {...noteContentAdditionalProps}
           />
         </Form.Group>
-        <Form.Group>
-          <RecordAudioButton
-            disabled={isPlaying}
-            isRecording={isRecording}
-            setIsRecording={setIsRecording}
-            setNoteContent={setNoteContent}
-          />
-          <PlayAudioButton
-            disabled={isRecording}
-            isPlaying={isPlaying}
-            setIsPlaying={setIsPlaying}
-            noteContent={noteContent}
-          />
-        </Form.Group>
-        <Form.Group controlId="file">
-          <Form.Label>Attachment</Form.Label>
-          <Form.Control
-            onChange={(e) => {
-              // @ts-ignore Property 'files' does not exist on type
-              setFile(e.target.files[0]);
-            }}
-            type="file"
-          />
+        <Form.Group controlId="attachments">
+          <Form.Label>Attachments</Form.Label>
+          <Form.Control type="file" multiple accept="image/*,application/pdf,.pdf,.doc,.docx,.txt" onChange={onFilesSelected} />
+          {attachments.length > 0 && (
+            <div className="mt-2">
+              {attachments.map((a) => (
+                <div key={a.id} className="small text-muted">{a.name}</div>
+              ))}
+            </div>
+          )}
         </Form.Group>
         <Button type="submit" disabled={!noteContent || isPending} block>
           {isPending ? <ButtonSpinner /> : ""}

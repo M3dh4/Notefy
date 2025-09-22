@@ -1,8 +1,8 @@
 import React, { useState, useTransition } from "react";
 import { Button, Alert } from "react-bootstrap";
-import { GATEWAY_URL } from "../config";
 import { useNavigate } from "react-router-dom";
 import { ButtonSpinner } from "../components";
+import { updateNote } from "../libs";
 
 const SaveNoteButton = (props: { noteId: string; noteContent: string }) => {
   const [isPending, startTransition] = useTransition();
@@ -13,17 +13,12 @@ const SaveNoteButton = (props: { noteId: string; noteContent: string }) => {
     event.preventDefault();
     startTransition(async () => {
       const { noteId, noteContent } = props;
-      const updateNoteURL = `${GATEWAY_URL}notes/${noteId}`;
-
       try {
-        await fetch(updateNoteURL, {
-          method: "PUT",
-          body: JSON.stringify({ content: noteContent }),
-        });
+        await updateNote(noteId, noteContent);
         navigate("/");
       } catch (error) {
         console.log(error);
-        setErrorMsg(`${error.toString()} - ${updateNoteURL} - ${noteContent}`);
+        setErrorMsg(`${error.toString()} - updateNote - ${noteContent}`);
       }
     });
   };

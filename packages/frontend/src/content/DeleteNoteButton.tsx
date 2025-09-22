@@ -1,30 +1,22 @@
 import React, { useState, useTransition } from "react";
 import { Button, Alert } from "react-bootstrap";
-import { GATEWAY_URL } from "../config";
 import { useNavigate } from "react-router-dom";
-import { deleteObject } from "../libs";
 import { ButtonSpinner } from "../components";
+import { deleteNote } from "../libs";
 
-const DeleteNoteButton = (props: { noteId: string; attachment?: string }) => {
-  const { noteId, attachment } = props;
+const DeleteNoteButton = (props: { noteId: string }) => {
+  const { noteId } = props;
   const [isDeleting, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
   const handleDelete = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     startTransition(async () => {
-      const deleteNoteURL = `${GATEWAY_URL}notes/${noteId}`;
-
       try {
-        if (attachment) {
-          await deleteObject(attachment);
-        }
-        await fetch(deleteNoteURL, {
-          method: "DELETE",
-        });
+        await deleteNote(noteId);
         navigate("/");
       } catch (error) {
-        setErrorMsg(`${error.toString()} - ${deleteNoteURL} - ${noteId}`);
+        setErrorMsg(`${error.toString()} - deleteNote - ${noteId}`);
       }
     });
   };

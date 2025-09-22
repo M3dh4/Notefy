@@ -1,6 +1,7 @@
-export * from "./CreateNote";
+export { default as CreateNote } from "./CreateNote";
+export { default as ListNotes } from "./ListNotes";
+export { default as NotFound } from "./NotFound";
+export { default as ShowNote } from "./ShowNote";
 export * from "./DeleteNoteButton";
-export * from "./ListNotes";
-export * from "./NotFound";
 export * from "./SaveNoteButton";
-export * from "./ShowNote";
+export { default as Tasks } from "./Tasks";
